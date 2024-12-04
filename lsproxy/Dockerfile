@@ -3,7 +3,7 @@ FROM rust:1.81.0-slim-bookworm
 # Set the working directory in the container
 WORKDIR /usr/src/app
 
-# Install runtime dependencies, Python, Node.js, and npm
+# Install runtime and development dependencies, Python, Node.js, and npm
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
@@ -12,9 +12,9 @@ RUN apt-get update && apt-get install -y \
     git \
     python3 \
     python3-pip \
-    pipx \
     python3-venv \
     curl \
+    clangd \
     build-essential \
     gcc \
     g++ \
@@ -29,7 +29,7 @@ RUN apt-get update && \
     gradle \
     maven \
     && \
-    curl -L -o /tmp/jdt-language-server.tar.gz https://www.eclipse.org/downloads/download.php?file=/jdtls/snapshots/jdt-language-server-1.42.0-202410312059.tar.gz && \
+    curl -L -o /tmp/jdt-language-server.tar.gz https://www.eclipse.org/downloads/download.php?file=/jdtls/snapshots/jdt-language-server-latest.tar.gz && \
     mkdir -p /opt/jdtls && \
     tar -xzf /tmp/jdt-language-server.tar.gz -C /opt/jdtls && \
     rm /tmp/jdt-language-server.tar.gz
@@ -37,27 +37,21 @@ RUN apt-get update && \
 # Add jdtls to PATH
 ENV PATH="/opt/jdtls/bin:${PATH}"
 
-
-# Install rust-analyzer
+# Install rust-analyzer and rustfmt
 RUN rustup component add rust-analyzer
 RUN rustup component add rustfmt
 
-# Angrily create a virtual environment
+# Create a virtual environment
 RUN python3 -m venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-# Install jedi for python
-RUN pip install jedi-language-server
+# Install jedi python language server, ast grep for tree sitter
+RUN pip install jedi-language-server ast-grep-cli
 
 # Install global npm packages
 RUN npm install -g typescript-language-server typescript
 
-#Install Clangd
-RUN apt update && apt install -y clangd
-
-# Install compiledb
-RUN pipx install compiledb && pipx ensurepath
-
+# Install coverage tools
 RUN cargo install cargo-llvm-cov
 RUN rustup component add llvm-tools-preview
 
@@ -66,7 +60,6 @@ COPY Cargo.toml .
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 RUN touch src/lib.rs
 RUN cargo build --release
-
 
 RUN cargo install ast-grep --locked
 COPY ./src/ast_grep /usr/src/ast_grep

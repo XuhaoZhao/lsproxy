@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use tokio::fs;
 
+use std::collections::HashSet;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::collections::HashSet;
 
-use crate::utils::file_utils::{search_files, search_directories};
+use crate::utils::file_utils::{search_directories, search_files};
 use crate::utils::workspace_documents::WorkspaceDocuments;
 use crate::{
     lsp::{JsonRpcHandler, LspClient, PendingRequests, ProcessHandler},
@@ -18,7 +18,7 @@ use crate::{
 use async_trait::async_trait;
 use fs::write;
 use futures::future::try_join_all;
-use log::{debug, info};
+use log::debug;
 use lsp_types::TextDocumentItem;
 use notify_debouncer_mini::DebouncedEvent;
 use tokio::{process::Command, sync::broadcast::Receiver};
@@ -61,7 +61,7 @@ impl LspClient for ClangdClient {
             Path::new(root_path),
             vec![String::from("**/compile_commands.json")],
             vec![String::from("**/.git")],
-            false
+            false,
         )?;
 
         if compile_db_files.is_empty() {
@@ -97,7 +97,7 @@ impl ClangdClient {
         let debug_file = std::fs::File::create("/tmp/clangd.log")?;
 
         let process = Command::new("clangd")
-            .arg("--log=error")
+            .arg("--log=info")
             .current_dir(root_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -176,7 +176,10 @@ fn find_include_dirs(project_root: &Path, cmakelists_files: &[PathBuf]) -> Vec<S
 
     // Use search_directories to find all directories (including "include")
     let include_patterns = vec!["**/*include*".to_string()]; // Matches any directory with "include" as a substring
-    let exclude_patterns: Vec<String> = DEFAULT_EXCLUDE_PATTERNS.iter().map(|&s| s.to_string()).collect();
+    let exclude_patterns: Vec<String> = DEFAULT_EXCLUDE_PATTERNS
+        .iter()
+        .map(|&s| s.to_string())
+        .collect();
 
     if let Ok(dirs) = search_directories(project_root, include_patterns, exclude_patterns) {
         for dir in dirs {
@@ -204,7 +207,10 @@ fn find_source_files(project_root: &Path) -> Vec<String> {
         "**/*.cxx".to_string(),
         "**/*.c".to_string(),
     ];
-    let exclude_patterns: Vec<String> = DEFAULT_EXCLUDE_PATTERNS.iter().map(|&s| s.to_string()).collect();
+    let exclude_patterns: Vec<String> = DEFAULT_EXCLUDE_PATTERNS
+        .iter()
+        .map(|&s| s.to_string())
+        .collect();
 
     match search_files(project_root, include_patterns, exclude_patterns, true) {
         Ok(files) => files
@@ -228,7 +234,10 @@ fn generate_compile_commands(
     let cmakelists_files = search_files(
         project_path,
         vec!["**/CMakeLists.txt".to_string()],
-        DEFAULT_EXCLUDE_PATTERNS.iter().map(|&s| s.to_string()).collect(),
+        DEFAULT_EXCLUDE_PATTERNS
+            .iter()
+            .map(|&s| s.to_string())
+            .collect(),
         true,
     )?;
 
@@ -250,7 +259,10 @@ fn generate_compile_commands(
 
     // Generate compile commands
     let compiler = "/usr/bin/c++";
-    let include_flags: Vec<String> = include_dirs.iter().map(|inc| format!("-I{}", inc)).collect();
+    let include_flags: Vec<String> = include_dirs
+        .iter()
+        .map(|inc| format!("-I{}", inc))
+        .collect();
 
     let compile_commands = source_files
         .iter()
@@ -274,7 +286,7 @@ fn parse_cmakelists(cmake_files: &[PathBuf]) -> Vec<String> {
     let mut flags = Vec::new();
     for cmake_path in cmake_files {
         if let Ok(content) = std::fs::read_to_string(cmake_path) {
-            // Extract C++ standard
+            // Extract C++ standard (this part is fine)
             if let Some(capture) = regex::Regex::new(r"set\s*\(\s*CMAKE_CXX_STANDARD\s+(\d+)\s*\)")
                 .unwrap()
                 .captures(&content)
@@ -282,12 +294,18 @@ fn parse_cmakelists(cmake_files: &[PathBuf]) -> Vec<String> {
                 flags.push(format!("-std=c++{}", &capture[1]));
             }
 
-            // Extract compile options
+            // Extract compile options but skip generator expressions and variables
             for caps in regex::Regex::new(r"add_compile_options\s*\((.*?)\)")
                 .unwrap()
                 .captures_iter(&content)
             {
-                flags.extend(caps[1].split_whitespace().map(String::from));
+                // Only take literal flags, skip anything with ${...} or $<...>
+                flags.extend(
+                    caps[1]
+                        .split_whitespace()
+                        .filter(|arg| !arg.contains("${") && !arg.contains("$<"))
+                        .map(String::from),
+                );
             }
         }
     }

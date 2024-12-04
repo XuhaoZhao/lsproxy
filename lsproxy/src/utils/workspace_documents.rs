@@ -223,11 +223,12 @@ impl WorkspaceDocuments for WorkspaceDocumentsHandler {
         if cache_read.is_empty() {
             drop(cache_read);
             let (include_patterns, exclude_patterns) = self.patterns.read().await.clone();
-            let file_paths = search_files(&self.root_path, include_patterns, exclude_patterns, true)
-                .unwrap_or_else(|err| {
-                    error!("Error searching files: {}", err);
-                    Vec::new()
-                });
+            let file_paths =
+                search_files(&self.root_path, include_patterns, exclude_patterns, true)
+                    .unwrap_or_else(|err| {
+                        error!("Error searching files: {}", err);
+                        Vec::new()
+                    });
             let mut cache_write = self.cache.write().await;
             for file_path in file_paths {
                 cache_write.insert(file_path, None);

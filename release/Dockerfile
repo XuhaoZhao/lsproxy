@@ -17,9 +17,9 @@ RUN apt-get update && apt-get install -y \
     git \
     python3 \
     python3-pip \
-    pipx \
     python3-venv \
     curl \
+    clangd \
     build-essential \
     gcc \
     g++ \
@@ -34,7 +34,7 @@ RUN apt-get update && \
     gradle \
     maven \
     && \
-    curl -L -o /tmp/jdt-language-server.tar.gz https://www.eclipse.org/downloads/download.php?file=/jdtls/snapshots/jdt-language-server-1.42.0-202410312059.tar.gz && \
+    curl -L -o /tmp/jdt-language-server.tar.gz https://www.eclipse.org/downloads/download.php?file=/jdtls/snapshots/jdt-language-server-latest.tar.gz && \
     mkdir -p /opt/jdtls && \
     tar -xzf /tmp/jdt-language-server.tar.gz -C /opt/jdtls && \
     rm /tmp/jdt-language-server.tar.gz
@@ -42,33 +42,25 @@ RUN apt-get update && \
 # Add jdtls to PATH
 ENV PATH="/opt/jdtls/bin:${PATH}"
 
-
 # Install rust-analyzer
 RUN rustup component add rust-analyzer
 RUN rustup component add rustfmt
 
-# Angrily create a virtual environment
+# Create a virtual environment
 RUN python3 -m venv /app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
-# Install jedi for python
-RUN pip install jedi-language-server
+# Install jedi python language server, ast grep for tree sitter
+RUN pip install jedi-language-server ast-grep-cli
 
 # Install global npm packages
 RUN npm install -g typescript-language-server typescript
 
-#Install Clangd
-RUN apt update && apt install -y clangd
-
-# Install compiledb
-RUN pipx install compiledb && pipx ensurepath
-
-# Install ast-grep
-RUN cargo install ast-grep --locked
-COPY ./src/ast_grep /usr/src/ast_grep
-
 # Copy the binary
 COPY --from=builder /usr/src/app/target/release/lsproxy .
+
+# Copy ast-grep rules
+COPY ./src/ast_grep /usr/src/ast_grep
 
 EXPOSE 4444
 ENV RUST_LOG=info

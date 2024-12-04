@@ -115,14 +115,21 @@ impl TypeScriptLanguageClient {
         let tsconfig_content = read_to_string(tsconfig_path).unwrap_or_else(|_| "{}".to_string());
         let tsconfig: Value = json5_from_str(&tsconfig_content)?;
 
-        let include_patterns = tsconfig["include"]
+        let mut include_patterns = tsconfig["include"]
             .as_array()
             .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
-            .unwrap_or_else(|| TYPESCRIPT_FILE_PATTERNS.to_vec());
-        let exclude_patterns = tsconfig["exclude"]
-            .as_array()
-            .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
-            .unwrap_or_else(|| DEFAULT_EXCLUDE_PATTERNS.to_vec());
+            .unwrap_or_else(|| vec![]);
+        if include_patterns.is_empty() {
+            include_patterns = TYPESCRIPT_FILE_PATTERNS.to_vec();
+        }
+
+        let mut exclude_patterns: Vec<&str> = DEFAULT_EXCLUDE_PATTERNS.to_vec();
+        exclude_patterns.extend(
+            tsconfig["exclude"]
+                .as_array()
+                .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
+                .unwrap_or_else(|| vec![]),
+        );
         let workspace_documents = self.get_workspace_documents();
         workspace_documents
             .update_patterns(

@@ -100,7 +100,7 @@ impl Manager {
                     .iter()
                     .map(|s| s.to_string())
                     .collect(),
-                true
+                true,
             )
             .map_err(|e| warn!("Error searching files: {}", e))
             .unwrap_or_default()
@@ -364,8 +364,8 @@ mod tests {
     use super::*;
     use crate::api_types::{FilePosition, FileRange, Position, Symbol, SymbolResponse};
     use crate::test_utils::{
-        c_sample_path, cpp_sample_path, go_sample_path, java_sample_path, js_sample_path,
-        python_sample_path, rust_sample_path, typescript_sample_path, TestContext,
+        c_sample_path, cpp_sample_path, java_sample_path, js_sample_path, python_sample_path,
+        rust_sample_path, typescript_sample_path, TestContext,
     };
     use lsp_types::{Range, Url};
 

@@ -138,7 +138,6 @@ pub async fn run_server_with_port_and_host(
     port: u16,
     host: &str,
 ) -> std::io::Result<()> {
-
     let openapi = ApiDoc::openapi();
 
     // Parse the full server URL to get just the path component
