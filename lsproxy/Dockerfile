@@ -30,12 +30,12 @@ RUN apt-get update && \
     maven \
     && \
     curl -L -o /tmp/jdt-language-server.tar.gz https://www.eclipse.org/downloads/download.php?file=/jdtls/snapshots/jdt-language-server-1.42.0-202410312059.tar.gz && \
-    mkdir -p /opt/jdtls && \
-    tar -xzf /tmp/jdt-language-server.tar.gz -C /opt/jdtls && \
+    mkdir -p /home/zxh/Desktop/my-fork/jdtls && \
+    tar -xzf /tmp/jdt-language-server.tar.gz -C /home/zxh/Desktop/my-fork/jdtls && \
     rm /tmp/jdt-language-server.tar.gz
 
 # Add jdtls to PATH
-ENV PATH="/opt/jdtls/bin:${PATH}"
+ENV PATH="/home/zxh/Desktop/my-fork/jdtls/bin:${PATH}"
 
 
 # Install rust-analyzer
@@ -43,7 +43,7 @@ RUN rustup component add rust-analyzer
 RUN rustup component add rustfmt
 
 # Angrily create a virtual environment
-RUN python3 -m venv /app/venv
+RUN python3 -m venv /home/zxh/Desktop/my-fork/app/venv
 ENV PATH="/app/venv/bin:$PATH"
 
 # Install jedi for python

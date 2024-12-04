@@ -54,7 +54,8 @@ impl Manager {
             .expect("Failed to watch path");
 
         let ast_grep = AstGrepClient {
-            config_path: String::from("/usr/src/ast_grep/sgconfig.yml"),
+            config_path: String::from("/home/zxh/Desktop/my-fork/lsproxy/lsproxy/src/ast_grep/grep_all_symbols/sgconfig.yml"),
+            gs_config_path: String::from("/home/zxh/Desktop/my-fork/lsproxy/lsproxy/src/ast_grep/global_search_method/sgconfig.yml")
         };
         Ok(Self {
             lsp_clients: HashMap::new(),
@@ -204,6 +205,25 @@ impl Manager {
         let ast_grep_result = self
             .ast_grep
             .get_file_symbols(full_path_str)
+            .await
+            .map_err(|e| LspManagerError::InternalError(format!("Symbol retrieval failed: {}", e)));
+        ast_grep_result
+    }
+
+    pub async fn global_search_ast_grep(
+        &self,
+        file_path: &str,
+        target: &str,
+    ) -> Result<Vec<AstGrepMatch>, LspManagerError> {
+        // let workspace_files = self.list_files().await?;
+        // if !workspace_files.iter().any(|f| f == file_path) {
+        //     return Err(LspManagerError::FileNotFound(file_path.to_string()));
+        // }
+        let full_path = get_mount_dir();
+        let full_path_str = full_path.to_str().unwrap_or_default();
+        let ast_grep_result = self
+            .ast_grep
+            .global_search(target,full_path_str)
             .await
             .map_err(|e| LspManagerError::InternalError(format!("Symbol retrieval failed: {}", e)));
         ast_grep_result

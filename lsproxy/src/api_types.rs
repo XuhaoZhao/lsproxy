@@ -12,7 +12,7 @@ use utoipa::{IntoParams, ToSchema};
 use crate::utils::file_utils::uri_to_relative_path_string;
 
 static GLOBAL_MOUNT_DIR: LazyLock<Arc<RwLock<PathBuf>>> =
-    LazyLock::new(|| Arc::new(RwLock::new(PathBuf::from("/mnt/workspace"))));
+    LazyLock::new(|| Arc::new(RwLock::new(PathBuf::from("/home/zxh/Desktop/my-fork/xxl-job"))));
 
 thread_local! {
     static THREAD_LOCAL_MOUNT_DIR: RefCell<Option<PathBuf>> = RefCell::new(None);
@@ -143,6 +143,8 @@ pub struct Symbol {
 
     /// The full range of the symbol.
     pub range: FileRange,
+
+    pub context: String,
 }
 
 #[derive(Deserialize, ToSchema, IntoParams)]
@@ -186,6 +188,18 @@ pub struct FileSymbolsRequest {
     /// The path to the file to get the symbols for, relative to the root of the workspace.
     #[schema(example = "src/main.py")]
     pub file_path: String,
+}
+
+
+/// Request to get the symbols in a file.
+#[derive(Deserialize, ToSchema, IntoParams)]
+pub struct GlobalSearchRequest {
+    /// The path to the file to get the symbols for, relative to the root of the workspace.
+    #[schema(example = "src/main.py")]
+    pub file_path: String,
+
+    #[schema(example = "src/main.py")]
+    pub target: String,
 }
 
 /// Request to get the symbols in the workspace.

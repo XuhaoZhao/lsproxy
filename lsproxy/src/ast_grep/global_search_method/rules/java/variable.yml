@@ -1,0 +1,38 @@
+id: variable
+language: java
+rule:
+  kind: identifier
+  pattern: $NAME
+  inside:
+    kind: variable_declarator
+    pattern: $CONTEXT
+    regex: "XXL_JOB_LOGIN_IDENTITY"
+
+# id: variable
+# language: java
+# rule:
+#   kind: field_declaration
+#   pattern: $CONTEXT
+#   regex: "XXL_JOB_LOGIN_IDENTITY"
+
+
+# id: variable
+# language: java
+# rule:
+#   kind: modifiers
+#   pattern: $NAME
+#   inside:
+#     kind: field_declaration
+#     pattern: $CONTEXT
+#     regex: "XXL_JOB_LOGIN_IDENTITY"
+
+
+# id: variable
+# language: java
+# rule:
+#   kind: type_identifier
+#   pattern: $NAME
+#   inside:
+#     kind: field_declaration
+#     pattern: $CONTEXT
+#     regex: "XXL_JOB_LOGIN_IDENTITY"
