@@ -9,7 +9,8 @@ use tokio::{process::Command, sync::broadcast::Receiver};
 use crate::{
     lsp::{ExpectedMessageKey, JsonRpcHandler, LspClient, PendingRequests, ProcessHandler},
     utils::workspace_documents::{
-        WorkspaceDocumentsHandler, DEFAULT_EXCLUDE_PATTERNS, JAVA_FILE_PATTERNS, JAVA_ROOT_FILES,
+        DidOpenConfiguration, WorkspaceDocumentsHandler, DEFAULT_EXCLUDE_PATTERNS,
+        JAVA_FILE_PATTERNS, JAVA_ROOT_FILES,
     },
 };
 
@@ -122,6 +123,7 @@ impl JdtlsClient {
                 .map(|&s| s.to_string())
                 .collect(),
             watch_events_rx,
+            DidOpenConfiguration::None,
         );
 
         let json_rpc_handler = JsonRpcHandler::new();

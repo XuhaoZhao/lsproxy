@@ -1,8 +1,17 @@
-use crate::api_types::get_mount_dir;
+use crate::{
+    api_types::{get_mount_dir, SupportedLanguages},
+    lsp::manager::LspManagerError,
+};
 use ignore::WalkBuilder;
 use log::warn;
 use std::path::{Path, PathBuf};
 use url::Url;
+
+use super::workspace_documents::{
+    CPP_EXTENSIONS, C_AND_CPP_EXTENSIONS, C_EXTENSIONS, JAVASCRIPT_EXTENSIONS, JAVA_EXTENSIONS,
+    PYTHON_EXTENSIONS, RUST_EXTENSIONS, TYPESCRIPT_AND_JAVASCRIPT_EXTENSIONS,
+    TYPESCRIPT_EXTENSIONS,
+};
 
 pub fn search_files(
     path: &std::path::Path,
@@ -103,4 +112,42 @@ pub fn absolute_path_to_relative_path_string(path: &PathBuf) -> String {
             warn!("Failed to strip prefix from {:?}: {:?}", path, e);
             path.to_string_lossy().into_owned()
         })
+}
+
+pub fn detect_language(file_path: &str) -> Result<SupportedLanguages, LspManagerError> {
+    let path = PathBuf::from(file_path);
+    let extension = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .ok_or_else(|| LspManagerError::UnsupportedFileType(file_path.to_string()))?;
+
+    match extension {
+        ext if PYTHON_EXTENSIONS.contains(&ext) => Ok(SupportedLanguages::Python),
+        ext if TYPESCRIPT_AND_JAVASCRIPT_EXTENSIONS.contains(&ext) => {
+            Ok(SupportedLanguages::TypeScriptJavaScript)
+        }
+        ext if RUST_EXTENSIONS.contains(&ext) => Ok(SupportedLanguages::Rust),
+        ext if C_AND_CPP_EXTENSIONS.contains(&ext) => Ok(SupportedLanguages::CPP),
+        ext if JAVA_EXTENSIONS.contains(&ext) => Ok(SupportedLanguages::Java),
+        _ => Err(LspManagerError::UnsupportedFileType(file_path.to_string())),
+    }
+}
+
+pub fn detect_language_string(file_path: &str) -> Result<String, LspManagerError> {
+    let path = PathBuf::from(file_path);
+    let extension = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .ok_or_else(|| LspManagerError::UnsupportedFileType(file_path.to_string()))?;
+
+    match extension {
+        ext if PYTHON_EXTENSIONS.contains(&ext) => Ok("python".to_string()),
+        ext if TYPESCRIPT_EXTENSIONS.contains(&ext) => Ok("typescript".to_string()),
+        ext if JAVASCRIPT_EXTENSIONS.contains(&ext) => Ok("javascript".to_string()),
+        ext if RUST_EXTENSIONS.contains(&ext) => Ok("rust".to_string()),
+        ext if C_EXTENSIONS.contains(&ext) => Ok("c".to_string()),
+        ext if CPP_EXTENSIONS.contains(&ext) => Ok("cpp".to_string()),
+        ext if JAVA_EXTENSIONS.contains(&ext) => Ok("java".to_string()),
+        _ => Err(LspManagerError::UnsupportedFileType(file_path.to_string())),
+    }
 }

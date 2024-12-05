@@ -4,7 +4,8 @@ FROM rust:1.81.0-slim-bookworm
 WORKDIR /usr/src/app
 
 # Install runtime and development dependencies, Python, Node.js, and npm
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install \
+    -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     libssl3 \
@@ -23,15 +24,23 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Config Python
+RUN ln -sf /usr/bin/python3 /usr/bin/python
+RUN rm /usr/lib/python3.11/EXTERNALLY-MANAGED
+
 # Install Java
 RUN apt-get update && \
-    apt-get install -y openjdk-17-jdk \
+    apt-get install \
+    -y --no-install-recommends \
+    openjdk-17-jdk \
     gradle \
     maven \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
     && \
     curl -L -o /tmp/jdt-language-server.tar.gz https://www.eclipse.org/downloads/download.php?file=/jdtls/snapshots/jdt-language-server-latest.tar.gz && \
     mkdir -p /opt/jdtls && \
-    tar -xzf /tmp/jdt-language-server.tar.gz -C /opt/jdtls && \
+    tar -xzf /tmp/jdt-language-server.tar.gz -C /opt/jdtls --no-same-owner && \
     rm /tmp/jdt-language-server.tar.gz
 
 # Add jdtls to PATH
@@ -40,10 +49,6 @@ ENV PATH="/opt/jdtls/bin:${PATH}"
 # Install rust-analyzer and rustfmt
 RUN rustup component add rust-analyzer
 RUN rustup component add rustfmt
-
-# Create a virtual environment
-RUN python3 -m venv /app/venv
-ENV PATH="/app/venv/bin:$PATH"
 
 # Install jedi python language server, ast grep for tree sitter
 RUN pip install jedi-language-server ast-grep-cli

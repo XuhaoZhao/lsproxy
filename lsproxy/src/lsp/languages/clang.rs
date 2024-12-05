@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
 use crate::utils::file_utils::{search_directories, search_files};
-use crate::utils::workspace_documents::WorkspaceDocuments;
+use crate::utils::workspace_documents::DidOpenConfiguration;
 use crate::{
     lsp::{JsonRpcHandler, LspClient, PendingRequests, ProcessHandler},
     utils::workspace_documents::{
@@ -17,9 +17,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use fs::write;
-use futures::future::try_join_all;
 use log::debug;
-use lsp_types::TextDocumentItem;
+use lsp_types::InitializeParams;
 use notify_debouncer_mini::DebouncedEvent;
 use tokio::{process::Command, sync::broadcast::Receiver};
 use url::Url;
@@ -78,14 +77,19 @@ impl LspClient for ClangdClient {
                 commands.len()
             );
         }
-
-        let text_document_items = self
-            .get_text_document_items_to_open_with_config(root_path)
-            .await?;
-        for item in text_document_items {
-            self.text_document_did_open(item).await?;
-        }
         Ok(())
+    }
+
+    async fn get_initialize_params(&mut self, root_path: String) -> InitializeParams {
+        let capabilities = self.get_capabilities();
+        InitializeParams {
+            capabilities,
+            root_uri: Some(Url::from_file_path(root_path).unwrap()),
+            initialization_options: Some(serde_json::json!({
+                "clangdFileStatus": true, // TODO: actually wait for the status when hitting a file
+            })),
+            ..Default::default()
+        }
     }
 }
 
@@ -120,6 +124,7 @@ impl ClangdClient {
                 .map(|s| s.to_string())
                 .collect(),
             watch_events_rx,
+            DidOpenConfiguration::Lazy,
         );
         let pending_requests = PendingRequests::new();
 
@@ -129,38 +134,6 @@ impl ClangdClient {
             workspace_documents,
             pending_requests,
         })
-    }
-
-    pub async fn get_text_document_items_to_open_with_config(
-        &mut self,
-        _workspace_path: &str,
-    ) -> Result<Vec<TextDocumentItem>, Box<dyn std::error::Error + Send + Sync>> {
-        let file_paths = self.workspace_documents.list_files().await;
-
-        let items = try_join_all(file_paths.into_iter().map(|file_path| {
-            let workspace_documents = &self.workspace_documents;
-            async move {
-                let content = workspace_documents
-                    .read_text_document(&file_path, None)
-                    .await?;
-                let uri =
-                    Url::from_file_path(&file_path).map_err(|_| "Invalid file path".to_string())?;
-                let language_id = match file_path.extension().and_then(|ext| ext.to_str()) {
-                    Some("c") => "c",
-                    _ => "cpp",
-                }
-                .to_string();
-                Ok::<TextDocumentItem, Box<dyn std::error::Error + Send + Sync>>(TextDocumentItem {
-                    uri,
-                    language_id: language_id.to_string(),
-                    version: 1,
-                    text: content,
-                })
-            }
-        }))
-        .await?;
-
-        Ok(items)
     }
 }
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-LSPROXY_VERSION="0.1.9"
+LSPROXY_VERSION="0.1.10"
 
 # Function to detect architecture
 detect_arch() {
@@ -37,13 +37,32 @@ install_system_deps() {
         libssl3 \
         ca-certificates \
         git \
-        python3 \
-        python3-pip \
         curl \
         clangd \
         build-essential \
         gcc \
         g++
+}
+
+# Function to install python
+install_python() {
+   echo "Installing python and packages..."
+   DEBIAN_FRONTEND=noninteractive apt-get install -y \
+       python3 \
+       python3-pip
+
+   ln -sf /usr/bin/python3 /usr/bin/python
+
+   PY_VERSION=$(python --version | cut -d' ' -f2 | cut -d'.' -f1,2)
+   MANAGED_FILE="/usr/lib/python${PY_VERSION}/EXTERNALLY-MANAGED"
+
+   if [ -f "$MANAGED_FILE" ]; then
+       rm "$MANAGED_FILE"
+   else
+       echo "Warning: EXTERNALLY-MANAGED file not found at $MANAGED_FILE"
+   fi
+
+   pip3 install jedi-language-server ast-grep-cli
 }
 
 # Function to install Node.js
@@ -60,17 +79,11 @@ install_java() {
     curl -L -o /tmp/jdt-language-server.tar.gz \
         "https://www.eclipse.org/downloads/download.php?file=/jdtls/snapshots/jdt-language-server-latest.tar.gz"
     mkdir -p /opt/jdtls
-    tar -xzf /tmp/jdt-language-server.tar.gz -C /opt/jdtls
+    tar -xzf /tmp/jdt-language-server.tar.gz -C /opt/jdtls --no-same-owner
     rm /tmp/jdt-language-server.tar.gz
     
     # Add jdtls to PATH
     echo 'export PATH="/opt/jdtls/bin:${PATH}"' >> /etc/profile.d/jdtls.sh
-}
-
-# Function to install Python dependencies
-install_python_deps() {
-    echo "Installing Python dependencies..."
-    pip3 install --prefix=/usr jedi-language-server ast-grep-cli
 }
 
 # Function to install Node.js dependencies
@@ -108,7 +121,7 @@ install_ast_grep_config() {
     curl -L -o /tmp/ast_grep.tar.gz "$config_url"
 
     echo "Extracting ast_grep configuration and rules..."
-    tar -xzf /tmp/ast_grep.tar.gz -C "$dest_dir"
+    tar -xzf /tmp/ast_grep.tar.gz -C "$dest_dir" --no-same-owner
     rm /tmp/ast_grep.tar.gz
 }
 
@@ -125,9 +138,9 @@ main() {
     check_root
     
     install_system_deps
+    install_python
     install_nodejs
     install_java
-    install_python_deps
     install_node_deps
     install_rust_tools
     install_lsproxy

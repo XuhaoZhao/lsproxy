@@ -1,7 +1,7 @@
-use crate::lsp::json_rpc::{JsonRpc, JsonRpcMessage};
+use crate::lsp::json_rpc::JsonRpc;
 use crate::lsp::process::Process;
 use crate::lsp::{ExpectedMessageKey, InnerMessage, JsonRpcHandler, ProcessHandler};
-use crate::utils::file_utils::search_directories;
+use crate::utils::file_utils::{detect_language_string, search_directories};
 use async_trait::async_trait;
 use log::{debug, error, warn};
 use lsp_types::{
@@ -9,13 +9,15 @@ use lsp_types::{
     DocumentSymbolParams, DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse,
     InitializeParams, InitializeResult, Location, PartialResultParams, Position,
     PublishDiagnosticsClientCapabilities, ReferenceContext, ReferenceParams, TagSupport,
-    TextDocumentClientCapabilities, TextDocumentIdentifier, TextDocumentPositionParams, Url,
-    WorkDoneProgressParams, WorkspaceFolder, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    TextDocumentClientCapabilities, TextDocumentIdentifier, TextDocumentItem,
+    TextDocumentPositionParams, Url, WorkDoneProgressParams, WorkspaceFolder,
 };
 use std::error::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-use crate::utils::workspace_documents::{WorkspaceDocumentsHandler, DEFAULT_EXCLUDE_PATTERNS};
+use crate::utils::workspace_documents::{
+    DidOpenConfiguration, WorkspaceDocuments, WorkspaceDocumentsHandler, DEFAULT_EXCLUDE_PATTERNS,
+};
 
 use super::PendingRequests;
 
@@ -190,6 +192,32 @@ pub trait LspClient: Send {
             "Requesting goto definition for {}, line {}, character {}",
             file_path, position.line, position.character
         );
+
+        let needs_open = {
+            let workspace_documents = self.get_workspace_documents();
+            workspace_documents.get_did_open_configuration() == DidOpenConfiguration::Lazy
+                && !workspace_documents.is_did_open_document(file_path)
+        };
+
+        // If needed, read the document text and send didOpen
+        if needs_open {
+            let document_text = self
+                .get_workspace_documents()
+                .read_text_document(&PathBuf::from(file_path), None)
+                .await?;
+
+            self.text_document_did_open(TextDocumentItem {
+                uri: Url::from_file_path(file_path).unwrap(),
+                language_id: detect_language_string(file_path)?,
+                version: 1,
+                text: document_text,
+            })
+            .await?;
+
+            self.get_workspace_documents()
+                .add_did_open_document(file_path);
+        }
+
         let params = GotoDefinitionParams {
             text_document_position_params: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier {
@@ -217,38 +245,6 @@ pub trait LspClient: Send {
 
         debug!("Received goto definition response");
         Ok(goto_resp)
-    }
-
-    // TODO re-implement using textDocument/symbol
-    #[allow(unused)]
-    async fn workspace_symbols(
-        &mut self,
-        query: &str,
-    ) -> Result<WorkspaceSymbolResponse, Box<dyn Error + Send + Sync>> {
-        debug!("Requesting workspace symbols with query: {}", query);
-        let params = WorkspaceSymbolParams {
-            query: query.to_string(),
-            ..Default::default()
-        };
-        let (id, request) = self
-            .get_json_rpc()
-            .create_request("workspace/symbol", Some(serde_json::to_value(params)?));
-        let message = format!("Content-Length: {}\r\n\r\n{}", request.len(), request);
-        self.get_process().send(&message).await?;
-
-        let response = self
-            .receive_response()
-            .await?
-            .ok_or("No response received")?;
-        if let Some(result) = response.result {
-            let symbols: WorkspaceSymbolResponse = serde_json::from_value(result)?;
-            Ok(symbols)
-        } else if let Some(error) = response.error {
-            error!("Workspace symbols error: {:?}", error);
-            Err(error.into())
-        } else {
-            Err("Unexpected workspace symbols response".into())
-        }
     }
 
     async fn text_document_symbols(
@@ -281,9 +277,32 @@ pub trait LspClient: Send {
         file_path: &str,
         position: Position,
     ) -> Result<Vec<Location>, Box<dyn Error + Send + Sync>> {
-        // TODO: the jedi language server doesn't appear to respect
-        // The "includeDeclaration" param so we'll just say we're
-        // always including it
+        // Get the configuration and check if document is opened first
+        let needs_open = {
+            let workspace_documents = self.get_workspace_documents();
+            workspace_documents.get_did_open_configuration() == DidOpenConfiguration::Lazy
+                && !workspace_documents.is_did_open_document(file_path)
+        };
+
+        // If needed, read the document text and send didOpen
+        if needs_open {
+            let document_text = self
+                .get_workspace_documents()
+                .read_text_document(&PathBuf::from(file_path), None)
+                .await?;
+
+            self.text_document_did_open(TextDocumentItem {
+                uri: Url::from_file_path(file_path).unwrap(),
+                language_id: detect_language_string(file_path)?,
+                version: 1,
+                text: document_text,
+            })
+            .await?;
+
+            self.get_workspace_documents()
+                .add_did_open_document(file_path);
+        }
+
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier {
@@ -308,29 +327,6 @@ pub trait LspClient: Send {
         let references: Vec<Location> = serde_json::from_value(result)?;
         debug!("Received references response");
         Ok(references)
-    }
-
-    async fn receive_response(
-        &mut self,
-    ) -> Result<Option<JsonRpcMessage>, Box<dyn Error + Send + Sync>> {
-        debug!("Awaiting response from LSP server");
-        // TODO this could be an inf loop, though timeout in receive will break it
-        loop {
-            let raw_response = self.get_process().receive().await?;
-            let message = self.get_json_rpc().parse_message(&raw_response)?;
-            debug!("Received response: {:?}", message);
-
-            if let Some(msg_type) = &message.method {
-                if msg_type == "window/logMessage" {
-                    debug!("Captured log message, continuing to next message");
-                    continue;
-                }
-            }
-
-            if message.id.is_some() {
-                return Ok(Some(message));
-            }
-        }
     }
 
     fn get_process(&mut self) -> &mut ProcessHandler;
