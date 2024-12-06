@@ -21,11 +21,11 @@ mod lsp;
 mod utils;
 
 use crate::api_types::{
-    get_mount_dir, set_global_mount_dir, DefinitionResponse, FilePosition, FileSymbolsRequest,
+    get_mount_dir, set_global_mount_dir, DefinitionResponse, FilePosition, FileSymbolsRequest,GlobalSearchRequest,
     GetDefinitionRequest, GetReferencesRequest, ReferencesResponse, SupportedLanguages, Symbol,
     SymbolResponse,
 };
-use crate::handlers::{definitions_in_file, find_definition, find_references, list_files};
+use crate::handlers::{definitions_in_file, find_definition, find_references, list_files,global_search};
 use crate::lsp::manager::Manager;
 // use crate::utils::doc_utils::make_code_sample;
 
@@ -50,9 +50,11 @@ pub fn check_mount_dir() -> std::io::Result<()> {
         crate::handlers::find_references,
         crate::handlers::list_files,
         crate::handlers::read_source_code,
+        crate::handlers::global_search,
     ),
     components(
         schemas(
+            GlobalSearchRequest,
             FileSymbolsRequest,
             GetDefinitionRequest,
             GetReferencesRequest,
@@ -138,6 +140,7 @@ pub async fn run_server_with_port_and_host(
     port: u16,
     host: &str,
 ) -> std::io::Result<()> {
+
     let openapi = ApiDoc::openapi();
 
     // Parse the full server URL to get just the path component
@@ -170,6 +173,8 @@ pub async fn run_server_with_port_and_host(
                     api_scope.service(resource(path).route(post().to(find_references))),
                 ("/symbol/definitions-in-file", Some(Method::Get)) =>
                     api_scope.service(resource(path).route(get().to(definitions_in_file))),
+                ("/symbol/global-search", Some(Method::Get)) =>
+                    api_scope.service(resource(path).route(get().to(global_search))),
                 ("/workspace/list-files", Some(Method::Get)) =>
                     api_scope.service(resource(path).route(get().to(list_files))),
                 ("/workspace/read-source-code", Some(Method::Post)) =>

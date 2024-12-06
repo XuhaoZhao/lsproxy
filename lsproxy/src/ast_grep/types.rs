@@ -122,6 +122,7 @@ impl From<AstGrepMatch> for Symbol {
                     character: ast_match.meta_variables.single.context.range.end.column as u32,
                 },
             },
+            context: ast_match.meta_variables.single.context.text.clone(),
         }
     }
 }

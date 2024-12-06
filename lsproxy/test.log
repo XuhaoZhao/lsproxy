@@ -1,0 +1,99 @@
+curl --request GET \
+  --url http://172.16.59.133:4444/v1/workspace/list-files
+
+
+
+
+  xxl-job-core/src/main/java/com/xxl/job/core/handler/impl/GlueJobHandler.java
+
+
+  curl -X GET "http://172.16.59.133:4444/symbol/definitions-in-file?file_path=/xxl-job-core/src/main/java/com/xxl/job/core/handler/impl/GlueJobHandler.java"
+
+  curl --request GET \
+  --url http://172.16.59.133:4444/v1/symbol/definitions-in-file?file_path=xxl-job-core/src/main/java/com/xxl/job/core/handler/impl/GlueJobHandler.java
+
+
+sg run -p '$CONTEXT.contains("logger.info")'
+sg run -p '$NAME ' --selector 'method_declaration' 
+
+
+curl --request GET --url "http://172.16.59.133:4444/v1/symbol/global-search?target=xxl-job job execute start&file_path=xxl-job-core"
+
+
+
+  sg scan --config /home/zxh/Desktop/my-fork/lsproxy/lsproxy/src/ast_grep/global_search_method/sgconfig.yml --json /home/zxh/Desktop/my-fork/xxl-job
+
+
+
+
+id: variable
+language: java
+rule:
+    pattern:
+      selector: string_literal
+      context: '"XXL_JOB_LOGIN_IDENTITY"'
+
+
+
+id: variable
+language: java
+rule:
+  kind: field_declaration
+  pattern: $NAME
+  regex: "XXL_JOB_LOGIN_IDENTITY"
+
+
+
+
+sg scan --inline-rules '
+id: variable
+language: java
+rule:
+  kind: identifier
+  pattern: $NAME
+  inside:
+    kind: variable_declarator
+    pattern: $CONTEXT
+    regex: {}
+
+---
+
+id: method
+language: java
+rule:
+  kind: identifier
+  pattern: $NAME
+  inside:
+    kind: method_declaration
+    pattern: $CONTEXT
+    regex: {}
+---
+
+id: enum
+language: java
+rule:
+  kind: identifier
+  pattern: $NAME
+  inside:
+    kind: enum_constant
+    pattern: $CONTEXT
+    regex: {} ' --json /home/zxh/Desktop/my-fork/xxl-job
+
+
+
+
+
+
+
+
+docker run -p 4444:4444 -v /root/xxl-job-master:/mnt/workspace custom-lsproxy:1.0
+
+curl --request GET --url "http://localhost:4444/v1/symbol/global-search?target=xxl-job job execute start&file_path=xxl-job-core"
+curl --request GET --url "http://js1.blockelite.cn:16175/v1/symbol/global-search?target=xxl-job%20job%20execute%20start&file_path=xxl-job-core"
+
+docker save -o custom-lsproxy.1.0.tar custom-lsproxy:1.0 
+
+scp custom-lsproxy.1.0.tar zxh@172.16.59.132:/home/zxh/Desktop
+
+scp -P 16120 custom-lsproxy.1.0.tar root@js1.blockelite.cn:/root
+scp -P 16120 xxl-job-master.zip root@js1.blockelite.cn:/root

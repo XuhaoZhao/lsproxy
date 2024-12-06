@@ -143,6 +143,8 @@ pub struct Symbol {
 
     /// The full range of the symbol.
     pub range: FileRange,
+    /// The context of the symbol.
+    pub context: String,
 }
 
 #[derive(Deserialize, ToSchema, IntoParams)]
@@ -186,6 +188,17 @@ pub struct FileSymbolsRequest {
     /// The path to the file to get the symbols for, relative to the root of the workspace.
     #[schema(example = "src/main.py")]
     pub file_path: String,
+}
+
+/// Request to get the symbols in a file.
+#[derive(Deserialize, ToSchema, IntoParams)]
+pub struct GlobalSearchRequest {
+    /// The path to the file to get the symbols for, relative to the root of the workspace.
+    #[schema(example = "src/main.py")]
+    pub file_path: String,
+    /// global search target
+    #[schema(example = "src/main.py")]
+    pub target: String,
 }
 
 /// Request to get the symbols in the workspace.
