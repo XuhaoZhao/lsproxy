@@ -51,7 +51,7 @@ impl LspClient for JdtlsClient {
         self.start_response_listener().await?;
 
         let params = self.get_initialize_params(root_path).await;
-
+        debug!("Params as JSON: {:?}", Some(serde_json::to_value(params.clone())?));
         let result = self
             .send_request("initialize", Some(serde_json::to_value(params)?))
             .await?;

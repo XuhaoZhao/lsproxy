@@ -66,6 +66,24 @@ pub trait LspClient: Send {
     }
 
     async fn get_initialize_params(&mut self, root_path: String) -> InitializeParams {
+        let settings = Some(serde_json::json!(
+            {
+                "settings": 
+                    {
+                        "java": {
+                            "import": {
+                                "gradle": {
+                                    "enabled": false,
+                                    // "offline": {
+                                    //     "enabled": false,
+                                    // }
+                                }
+                            }
+                        }
+                    }
+                
+            }
+        ));
         InitializeParams {
             capabilities: self.get_capabilities(),
             workspace_folders: Some(
@@ -74,6 +92,7 @@ pub trait LspClient: Send {
                     .unwrap(),
             ),
             root_uri: Some(Url::from_file_path(&root_path).unwrap()), // primarily for python
+            initialization_options: settings,
             ..Default::default()
         }
     }

@@ -59,6 +59,7 @@ RUN rustup component add rustfmt
 RUN pip install jedi-language-server ast-grep-cli
 
 # Install global npm packages
+RUN npm config set registry https://registry.npmmirror.com &&
 RUN npm install -g typescript-language-server typescript
 
 # Copy the binary
